@@ -25,11 +25,12 @@
 package util
 
 import (
-	"bytes"
 	"errors"
+	"strings"
 )
 
 var (
+	// ErrUnbalancedQuotes raised when quotes are not balanced in a string
 	ErrUnbalancedQuotes = errors.New("unbalanced quotes")
 )
 
@@ -44,57 +45,57 @@ func ToString(i interface{}) string {
 
 // SplitSpacesWithQuotes will split the string by spaces and preserve texts inside " " marks
 // error is returned when an unbalanced quote was found in the string
-
-// TODO: need to handle special cases like \" \'
 func SplitSpacesWithQuotes(s string) ([]string, error) {
 	var ret []string
-	const (
-		space    = ' '
-		dblQuote = '"'
-	)
+	var buf = new(strings.Builder) // not in quote string buffer
+	var scanned string
+	var err error
 
-	var (
-		buf          bytes.Buffer
-		pos          = 0
-		insideQuotes = false
-	)
-
-	for pos < len(s) {
+	for pos := 0; pos < len(s); pos++ {
 		char := s[pos]
 
-		if char == dblQuote {
-			insideQuotes = !insideQuotes
-			ret = appendIfBufferNotEmpty(&buf, ret)
-			pos++
-			continue
+		switch char {
+		case ' ':
+			if buf.Len() > 0 {
+				ret = append(ret, buf.String())
+				buf.Reset()
+			}
+		case '"':
+			pos, scanned, err = scanForByte(s, pos, '"')
+			if err != nil {
+				return nil, err
+			}
+			ret = append(ret, scanned)
+		default:
+			buf.WriteByte(char)
 		}
-
-		if char == space && !insideQuotes {
-			// well skip it
-			ret = appendIfBufferNotEmpty(&buf, ret)
-			pos++
-			continue
-		}
-
-		buf.WriteByte(char)
-		pos++
 	}
 
-	// we have unbalanced quotes
-	if insideQuotes {
-		return []string{}, ErrUnbalancedQuotes
+	if buf.Len() > 0 {
+		ret = append(ret, buf.String())
 	}
-
-	ret = appendIfBufferNotEmpty(&buf, ret)
 
 	return ret, nil
 }
 
-func appendIfBufferNotEmpty(buf *bytes.Buffer, list []string) []string {
-	if len(buf.String()) > 0 {
-		list = append(list, buf.String())
-		buf.Reset()
+func scanForByte(s string, pos int, r byte) (int, string, error) {
+	var ret = new(strings.Builder)
+	for pos++; pos < len(s); pos++ {
+		char := s[pos]
+
+		switch char {
+		case '\\':
+			if pos >= len(s)-1 {
+				return 0, "", ErrUnbalancedQuotes
+			}
+			pos++
+			ret.WriteByte(s[pos])
+		case r:
+			return pos, ret.String(), nil
+		default:
+			ret.WriteByte(char)
+		}
 	}
 
-	return list
+	return 0, "", ErrUnbalancedQuotes
 }

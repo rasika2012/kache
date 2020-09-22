@@ -22,45 +22,54 @@
  * SOFTWARE.
  */
 
-package protcl
+package cli
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"net"
+	"time"
 
-type ErrCastFailedToInt struct {
-	Val interface{}
+	"github.com/kasvith/kache/internal/resp/resp3"
+)
+
+var c *cli
+
+type cli struct {
+	conn        net.Conn
+	resp3Parser *resp3.Parser
+	addr        string
 }
 
-func (e *ErrCastFailedToInt) Error() string {
-	return fmt.Sprintf("%s: error casting %v to int", ERR, e.Val)
+// Write send string to server
+func (r *cli) Write(s string) error {
+	return r.write(s, true)
 }
 
-type ErrWrongType struct {
+func (r *cli) write(s string, reconnect bool) error {
+	n, err := c.conn.Write([]byte(s))
+	if n == 0 && err != nil && reconnect {
+		fmt.Println("reconnecting...")
+
+		if err := Dial(r.addr); err != nil {
+			return err
+		}
+		return r.write(s, false)
+	}
+	return err
 }
 
-func (ErrWrongType) Error() string {
-	return fmt.Sprintf("%s: invalid operation against key holding invalid type of value", WRONGTYP)
-}
+// Dial conn kache server
+func Dial(addr string) error {
+	conn, err := net.DialTimeout("tcp", addr, time.Second)
+	if err != nil {
+		return err
+	}
 
-type ErrGeneric struct {
-	Err error
-}
+	c = new(cli)
+	c.conn = conn
+	c.resp3Parser = resp3.NewResp3Parser(bufio.NewReader(conn))
+	c.addr = addr
 
-func (e *ErrGeneric) Error() string {
-	return fmt.Sprintf("%s: %s", ERR, e.Err)
-}
-
-type ErrWrongNumberOfArgs struct {
-	Cmd string
-}
-
-func (e *ErrWrongNumberOfArgs) Error() string {
-	return fmt.Sprintf("%s: %s has wrong number of arguments", WRONGTYP, e.Cmd)
-}
-
-type ErrUnknownCommand struct {
-	Cmd string
-}
-
-func (e *ErrUnknownCommand) Error() string {
-	return fmt.Sprintf("%s: unknown command %s", ERR, e.Cmd)
+	return nil
 }

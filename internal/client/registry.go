@@ -23,44 +23,65 @@
  *
  */
 
-package srv
+package client
 
 import (
-	"net"
-	"os"
-	"strconv"
+	"sync"
 
-	"github.com/kasvith/kache/internal/client"
-
-	"github.com/kasvith/kache/internal/config"
 	"github.com/kasvith/kache/internal/klogs"
 )
 
-// Start the tcp server
-func Start(config config.AppConfig) {
-	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
-	listener, err := net.Listen("tcp", addr)
+// ConnectedClients represents connected clients
+var ConnectedClients = Registry{clients: make(map[string]*Client)}
 
-	if err != nil {
-		klogs.Logger.Fatalf("error binding to port %d is already in use", config.Port)
-		os.Exit(3)
+// Registry maintains the registry of connected clients
+type Registry struct {
+	clients map[string]*Client
+	mux     sync.RWMutex
+}
+
+// Add a client to clients
+func (cr *Registry) Add(client *Client) {
+	cr.mux.Lock()
+	cr.clients[client.RemoteAddr().String()] = client
+	cr.mux.Unlock()
+
+	// log about new client
+	klogs.Logger.Debug("Connected:", client.RemoteAddr().String())
+}
+
+// Remove a client from clients
+func (cr *Registry) Remove(remoteAddr string) {
+	cr.mux.Lock()
+	delete(cr.clients, remoteAddr)
+	cr.mux.Unlock()
+
+	// log about new client
+	klogs.Logger.Debug("Disconnected:", remoteAddr)
+}
+
+// Count of the connected clients
+func (cr *Registry) Count() (num int) {
+	cr.mux.RLock()
+	num = len(cr.clients)
+	cr.mux.RUnlock()
+	return
+}
+
+// LogClientCount to the logger
+func (cr *Registry) LogClientCount() {
+	count := cr.Count()
+	if count > 0 {
+		klogs.Logger.Debugf("%d connections are open", count)
 	}
+}
 
-	klogs.Logger.Infof("application is ready to accept connections on port %d", config.Port)
-
-	for {
-		conn, err := listener.Accept()
-
-		if err != nil {
-			klogs.Logger.Error("Error on connection with", conn.RemoteAddr().String(), ":", err.Error())
-			conn.Close()
-			continue // we skip malformed user
-		}
-
-		newClient := client.NewClient(conn)
-		client.ConnectedClients.Add(newClient)
-		client.ConnectedClients.LogClientCount()
-
-		go newClient.Handle()
+// Close all clients
+func (cr *Registry) Close() error {
+	cr.mux.Lock()
+	for _, c := range cr.clients {
+		c.Connection.Close()
 	}
+	cr.mux.Unlock()
+	return nil
 }

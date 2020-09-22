@@ -22,53 +22,62 @@
  * SOFTWARE.
  */
 
-package arch
+package cli
 
 import (
-	"github.com/kasvith/kache/internal/cmds"
-	"github.com/kasvith/kache/internal/db"
-	"github.com/kasvith/kache/internal/protcl"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/kasvith/kache/internal/resp/resp3"
+
+	"github.com/c-bata/go-prompt"
 )
 
-type CommandFunc func(*db.DB, []string) *protcl.Message
-
-type Command struct {
-	ModifyKeySpace bool
-	Fn             CommandFunc
-}
-
-var CommandTable = map[string]Command{
-	// server
-	"ping": {ModifyKeySpace: false, Fn: cmds.Ping},
-
-	// key space
-	"exists": {ModifyKeySpace: false, Fn: cmds.Exists},
-	"del":    {ModifyKeySpace: true, Fn: cmds.Del},
-
-	// strings
-	"get":  {ModifyKeySpace: false, Fn: cmds.Get},
-	"set":  {ModifyKeySpace: true, Fn: cmds.Set},
-	"incr": {ModifyKeySpace: true, Fn: cmds.Incr},
-	"decr": {ModifyKeySpace: true, Fn: cmds.Decr},
-}
-
-type DBCommand struct {
-}
-
-func getCommand(cmd string) (*Command, error) {
-	if v, ok := CommandTable[cmd]; ok {
-		return &v, nil
+// RunCli start kache-cli command
+func RunCli(host string, port int) {
+	if err := Dial(fmt.Sprintf("%s:%d", host, port)); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	return nil, &protcl.ErrUnknownCommand{}
+	p := prompt.New(
+		Executor,
+		Completer,
+		prompt.OptionPrefix(fmt.Sprintf("%s:%d> ", host, port)),
+		prompt.OptionTitle("kache-cli"),
+	)
+	p.Run()
 }
 
-// Execute executes a single command on the given database
-func (DBCommand) Execute(db *db.DB, cmd string, args []string) *protcl.Message {
-	command, err := getCommand(cmd)
+// Executor used in CLI
+func Executor(s string) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return
+	} else if s == "quit" || s == "exit" {
+		fmt.Println("Bye!")
+		os.Exit(0)
+		return
+	}
+
+	if err := c.Write(resp3.NewSliceResp3(strings.Split(s, " "))); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	resp, err := c.resp3Parser.Parse()
 	if err != nil {
-		return protcl.NewMessage(nil, err)
+		fmt.Println(err)
+		return
+	} else if resp != nil {
+		fmt.Println(resp.RenderString())
+		return
 	}
+	fmt.Println("(empty)")
+}
 
-	return command.Fn(db, args)
+// Completer used in CLI
+func Completer(document prompt.Document) []prompt.Suggest {
+	return nil
 }

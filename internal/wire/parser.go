@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c)  2018 Kasun Vithanage
+ * Copyright (c) 2019 Kasun Vithanage
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,25 +20,53 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
-package main
+package wire
 
 import (
-	"log"
+	"bufio"
+	"strings"
 
-	"github.com/spf13/cobra/doc"
-
-	cobracmds "github.com/kasvith/kache/internal/cobra-cmds"
-	"github.com/kasvith/kache/internal/cobra-cmds/kache"
+	"github.com/kasvith/kache/internal/protocol"
 )
 
-func main() {
-	// import all commands
-	kache.RootCmd.AddCommand(cobracmds.VersionCmd)
-	err := doc.GenMarkdownTree(kache.RootCmd, "./")
+// Parser is used to parse wire protocol
+type Parser struct {
+	r *bufio.Reader
+}
 
+// NewParser creates a wire protocol parser
+func NewParser(r *bufio.Reader) *Parser {
+	return &Parser{r: r}
+}
+
+// Parse and return a Command and an error
+func (p Parser) Parse() (*protocol.Command, error) {
+	str, err := p.r.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+
+	strLen := len(str)
+	remLen := strLen
+	if strLen > 0 {
+		if str[strLen-1] == '\n' {
+			remLen--
+		}
+
+		if strLen > 1 && str[strLen-2] == '\r' {
+			remLen--
+		}
+	}
+
+	str = str[:remLen]
+	tokens := strings.Split(str, " ")
+
+	if len(tokens) > 0 {
+		return &protocol.Command{Name: strings.ToLower(tokens[0]), Args: tokens[1:]}, nil
+	}
+
+	return &protocol.Command{}, nil
 }

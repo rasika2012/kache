@@ -22,22 +22,43 @@
  * SOFTWARE.
  */
 
-package cmds
+package cli
 
 import (
-	"github.com/kasvith/kache/internal/db"
-	"github.com/kasvith/kache/internal/protcl"
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+
+	"github.com/kasvith/kache/internal/cli"
+	cobracmds "github.com/kasvith/kache/internal/cobra-cmds"
 )
 
-func Ping(d *db.DB, args []string) *protcl.Message {
-	ll := len(args)
-	if ll > 1 {
-		return protcl.NewMessage(nil, &protcl.ErrWrongNumberOfArgs{Cmd: "ping"})
-	}
+var host string
+var port int
 
-	if ll == 0 {
-		return protcl.NewMessage(protcl.NewSimpleStringReply("PONG"), nil)
-	}
+// RootCmd of the CLI
+var RootCmd = &cobra.Command{
+	Use:   "kache-cli",
+	Short: "kache-cli is a client to access kache server",
+	Run:   runCli,
+}
 
-	return protcl.NewMessage(protcl.NewBulkStringReply(false, args[0]), nil)
+func init() {
+	RootCmd.Flags().StringVarP(&host, "host", "", "127.0.0.1", "host of kache server")
+	RootCmd.Flags().IntVarP(&port, "port", "p", 7088, "port of kache server")
+}
+
+// Execute CLI
+func Execute() {
+	RootCmd.AddCommand(cobracmds.VersionCmd)
+
+	if err := RootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func runCli(cmd *cobra.Command, args []string) {
+	cli.RunCli(host, port)
 }

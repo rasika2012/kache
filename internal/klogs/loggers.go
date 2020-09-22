@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c)  2018 Kasun Vithanage
+ * Copyright (c) 2019 Kasun Vithanage
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,7 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
 package klogs
@@ -27,27 +28,29 @@ package klogs
 import (
 	"bytes"
 	"fmt"
-	"github.com/kasvith/kache/internal/config"
-	"github.com/kasvith/kache/internal/sys"
-	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/kasvith/kache/internal/config"
+	"github.com/kasvith/kache/internal/sys"
 )
 
+// Logger is the application level logger
 var Logger *logrus.Entry
 
+// InitLoggers will initialize loggers
 func InitLoggers(config config.AppConfig) {
 	var logrusLogger = logrus.New()
 
-	if config.Debug == true {
+	if config.Debug {
 		logrusLogger.SetLevel(logrus.DebugLevel)
-	} else if config.Verbose == true {
-		logrusLogger.SetLevel(logrus.InfoLevel)
 	} else {
-		logrusLogger.SetLevel(logrus.WarnLevel)
+		logrusLogger.SetLevel(logrus.InfoLevel)
 	}
 
 	fields := logrus.Fields{"pid": os.Getpid()}
@@ -71,7 +74,7 @@ func InitLoggers(config config.AppConfig) {
 	Logger = logrusLogger.WithFields(fields)
 
 	// if we dont want logging, just discard all to a null device
-	if config.Logging == false {
+	if !config.Logging {
 		logrusLogger.Out = ioutil.Discard
 	}
 
@@ -122,6 +125,8 @@ func (kacheFormatter) Format(e *logrus.Entry) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// PrintErrorAndExit is printing error and exit with given code
+// It will panic when DEBUG environment set
 func PrintErrorAndExit(err error, exit int) {
 	if os.Getenv("ENV") == "DEBUG" {
 		panic(err)

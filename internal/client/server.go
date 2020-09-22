@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c)  2018 Kasun Vithanage
+ * Copyright (c) 2019 Kasun Vithanage
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,54 +20,51 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
-package srv
+package client
 
 import (
-	"github.com/kasvith/kache/internal/klogs"
-	"net"
-	"sync"
+	"github.com/kasvith/kache/internal/protocol"
+	"github.com/kasvith/kache/internal/resp/resp2"
 )
 
-var ConnectedClients Clients
-
-type Clients struct {
-	numClients int
-	mux        sync.Mutex
-}
-
-func (c *Clients) increase() {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	c.numClients++
-}
-
-func (c *Clients) decrease() {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	c.numClients--
-}
-
-func logOpenedClients() {
-	if ConnectedClients.numClients > 0 {
-		klogs.Logger.Info(ConnectedClients.numClients, " connections are now open")
+// Ping will return PONG when no argument found or will echo the given argument
+func Ping(client *Client, args []string) {
+	if len(args) == 0 {
+		client.WriteProtocolReply(resp2.NewSimpleStringReply("PONG"))
 		return
 	}
 
-	klogs.Logger.Info("no connections are now open")
+	client.WriteProtocolReply(resp2.NewSimpleStringReply(args[0]))
 }
 
-func (c *Clients) logOnDisconnect(conn net.Conn) {
-	klogs.Logger.Info("disconnected client from ", conn.RemoteAddr())
-	c.decrease()
-	logOpenedClients()
+// Multi command will put client in multi mode where can execute multiple commands at once
+func Multi(client *Client, args []string) {
+	client.Multi = true
+	client.WriteProtocolReply(resp2.NewSimpleStringReply("OK"))
 }
 
-func (c *Clients) logOnConnect(conn net.Conn) {
-	klogs.Logger.Info("connected client from ", conn.RemoteAddr())
-	c.increase()
-	logOpenedClients()
+// Exec command will execute a multi transaction
+func Exec(client *Client, args []string) {
+	if !client.Multi {
+		client.WriteError(protocol.ErrExecWithoutMulti{})
+		return
+	}
+
+	client.Multi = false
+	if client.MultiError {
+		client.MultiError = false
+		client.Commands = []*Command{}
+		client.WriteError(protocol.ErrExecAbortTransaction{})
+		return
+	}
+
+	for _, cmd := range client.Commands {
+		cmd.Fn(client, cmd.Args)
+	}
+
+	// clear all commands
+	client.Commands = []*Command{}
 }

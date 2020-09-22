@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c)  2018 Kasun Vithanage
+ * Copyright (c) 2019 Kasun Vithanage
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,27 +20,33 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
 package kache
 
 import (
 	"fmt"
+	"os"
+	"time"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
+	cobracmds "github.com/kasvith/kache/internal/cobra-cmds"
 	"github.com/kasvith/kache/internal/config"
 	"github.com/kasvith/kache/internal/klogs"
 	"github.com/kasvith/kache/internal/srv"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"os"
 )
 
 var verbose bool
 var cfgFile string
 
+// RootCmd is the root command for cobra
 var RootCmd = &cobra.Command{
 	Use:   "kache",
 	Short: "kache is a simple distributed in memory database",
-	Long:  `A fast and a flexible in memory database built with go`,
+	Long:  `A fast and a flexible in memory redis-compatible database`,
 	Run:   runApp,
 }
 
@@ -92,8 +98,6 @@ func initConfig() {
 			os.Exit(1)
 		}
 
-		fmt.Printf("%T\n", err)
-
 		switch err.(type) {
 		case viper.ConfigFileNotFoundError:
 			fmt.Fprintf(os.Stderr, "Error reading config file from config directory\nLoading with application defaults...\n")
@@ -106,9 +110,10 @@ func initConfig() {
 	}
 }
 
+// Execute will start kache
 func Execute() {
 	// Commands
-	RootCmd.AddCommand(VersionCmd)
+	RootCmd.AddCommand(cobracmds.VersionCmd)
 
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -122,8 +127,32 @@ func runApp(cmd *cobra.Command, args []string) {
 		klogs.PrintErrorAndExit(err, 2)
 	}
 
-	appConfig.MaxMultiBlkLength = 512 * 1024 * 1024
+	appConfig.MaxMultiBulkLength = config.DefaultMaxMultiBulkLength
 	config.AppConf = appConfig
+
+	fmt.Println(getASCIIBanner())
+	fmt.Printf("Started at: %s\n", time.Now().Format(time.RFC850))
+	fmt.Printf("PID: %d\n", os.Getpid())
+	fmt.Printf("Port: %d\n", appConfig.Port)
+	fmt.Println()
+
 	klogs.InitLoggers(appConfig)
 	srv.Start(appConfig)
+}
+
+func getASCIIBanner() string {
+	val := `
+
+ ██ ▄█▀▄▄▄       ▄████▄   ██░ ██ ▓█████ 
+ ██▄█▒▒████▄    ▒██▀ ▀█  ▓██░ ██▒▓█   ▀ 
+▓███▄░▒██  ▀█▄  ▒▓█    ▄ ▒██▀▀██░▒███   
+▓██ █▄░██▄▄▄▄██ ▒▓▓▄ ▄██▒░▓█ ░██ ▒▓█  ▄ 
+▒██▒ █▄▓█   ▓██▒▒ ▓███▀ ░░▓█▒░██▓░▒████▒
+▒ ▒▒ ▓▒▒▒   ▓▒█░░ ░▒ ▒  ░ ▒ ░░▒░▒░░ ▒░ ░
+░ ░▒ ▒░ ▒   ▒▒ ░  ░  ▒    ▒ ░▒░ ░ ░ ░  ░
+░ ░░ ░  ░   ▒   ░         ░  ░░ ░   ░   
+░  ░        ░  ░░ ░       ░  ░  ░   ░  ░
+                ░
+`
+	return val
 }

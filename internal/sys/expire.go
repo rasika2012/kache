@@ -22,22 +22,14 @@
  * SOFTWARE.
  */
 
-package cmds
+package sys
 
 import (
-	"github.com/kasvith/kache/internal/db"
-	"github.com/kasvith/kache/internal/protcl"
+	"time"
 )
 
-func Exists(d *db.DB, args []string) *protcl.Message {
-	if len(args) != 1 {
-		return protcl.NewMessage(nil, &protcl.ErrWrongNumberOfArgs{Cmd: "exists"})
-	}
-	found := d.Exists(args[0])
-	return protcl.NewMessage(protcl.NewIntegerReply(found), nil)
-}
-
-func Del(d *db.DB, args []string) *protcl.Message {
-	deleted := d.Del(args)
-	return protcl.NewMessage(protcl.NewIntegerReply(deleted), nil)
+// GetTTL unix time stamp for a key
+func GetTTL(val int64, scale time.Duration) int64 {
+	tt := time.Now().Add(time.Duration(val) * scale).Unix()
+	return tt
 }

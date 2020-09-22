@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c)  2018 Kasun Vithanage
+ * Copyright (c) 2019 Kasun Vithanage
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,25 +20,27 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
-package main
+package client
 
-import (
-	"log"
+// CommandTable holds all commands that are supported by kache
+var CommandTable = map[string]Command{
+	// server
+	"ping":  {ModifyKeySpace: false, Fn: Ping, MinArgs: 0, MaxArgs: 1},
+	"multi": {ModifyKeySpace: true, Fn: Multi, MinArgs: 0, MaxArgs: 0},
+	"exec":  {ModifyKeySpace: true, Fn: Exec, MinArgs: 0, MaxArgs: 0},
 
-	"github.com/spf13/cobra/doc"
+	// key space
+	"exists": {ModifyKeySpace: false, Fn: Exists, MinArgs: 1, MaxArgs: 1},
+	"del":    {ModifyKeySpace: true, Fn: Del, MinArgs: 1, MaxArgs: -1},
+	"keys":   {ModifyKeySpace: false, Fn: Keys, MinArgs: 0, MaxArgs: 0},
+	"expire": {ModifyKeySpace: false, Fn: Expire, MinArgs: 2, MaxArgs: 2},
 
-	cobracmds "github.com/kasvith/kache/internal/cobra-cmds"
-	"github.com/kasvith/kache/internal/cobra-cmds/kache"
-)
-
-func main() {
-	// import all commands
-	kache.RootCmd.AddCommand(cobracmds.VersionCmd)
-	err := doc.GenMarkdownTree(kache.RootCmd, "./")
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	// strings
+	"get":  {ModifyKeySpace: false, Fn: Get, MinArgs: 1, MaxArgs: 1},
+	"set":  {ModifyKeySpace: true, Fn: Set, MinArgs: 2, MaxArgs: 2},
+	"incr": {ModifyKeySpace: true, Fn: Incr, MinArgs: 1, MaxArgs: 1},
+	"decr": {ModifyKeySpace: true, Fn: Decr, MinArgs: 1, MaxArgs: 1},
 }

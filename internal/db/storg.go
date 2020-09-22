@@ -24,21 +24,59 @@
 
 package db
 
+import (
+	"sync"
+	"time"
+)
+
+// DataType is a enum type which holds the type of data
 type DataType int
 
 const (
-	TypeString  DataType = 1
-	TypeList    DataType = 2
-	TypeHashMap DataType = 3
-	TypeSet     DataType = 4
+	// TypeString string type
+	TypeString = DataType(iota + 1)
+
+	// TypeList list type
+	TypeList
+
+	// TypeHashMap hashmap type
+	TypeHashMap
+
+	// TypeSet set type
+	TypeSet
 )
 
+// DataNode holds data node which used to store in db
 type DataNode struct {
-	Type      DataType
-	ExpiresAt int
-	Value     interface{}
+	// Type of the data
+	Type DataType
+
+	// ExpiresAt for the data(unix timestamp)
+	ExpiresAt int64
+
+	// Value of the data
+	Value interface{}
+
+	// rw mux
+	mux sync.RWMutex
 }
 
-func NewDataNode(t DataType, exp int, val interface{}) *DataNode {
-	return &DataNode{t, exp, val}
+// NewDataNode creates a new *DataNode
+func NewDataNode(t DataType, exp int64, val interface{}) *DataNode {
+	return &DataNode{Type: t, ExpiresAt: exp, Value: val}
+}
+
+// IsExpired will be true when node expired
+func (node *DataNode) IsExpired() bool {
+	node.mux.RLock()
+	expired := node.ExpiresAt != -1 && node.ExpiresAt < time.Now().Unix()
+	node.mux.RUnlock()
+	return expired
+}
+
+// SetExpiration will set the expiration for the node
+func (node *DataNode) SetExpiration(ttl int64) {
+	node.mux.Lock()
+	node.ExpiresAt = ttl
+	node.mux.Unlock()
 }

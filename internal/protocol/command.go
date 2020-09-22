@@ -22,21 +22,12 @@
  * SOFTWARE.
  */
 
-package kache
+package protocol
 
-import (
-	"fmt"
-	"github.com/spf13/cobra"
-)
-
-const APPVER = "1.0.0"
-
-var VersionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Display application version",
-	Long:  `Display application version on the screen`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// TODO automated build version to be added
-		fmt.Println("Version", APPVER)
-	},
+// Command represents a command that can be executed by the kache server
+type Command struct {
+	// Name of the command
+	Name string
+	// Args for command
+	Args []string
 }

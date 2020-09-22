@@ -22,50 +22,31 @@
  * SOFTWARE.
  */
 
-package testsuite
+package cobracmds
 
 import (
-	"reflect"
-	"testing"
+	"fmt"
+
+	"github.com/spf13/cobra"
 )
 
-//AssertEqual Will do a typical assertation
-func AssertEqual(t *testing.T, expected interface{}, given interface{}) {
-	if expected != given {
-		t.Errorf("Assertion failed, excepted [%T] %v : given [%T] %v", expected, expected, given, given)
-	}
-}
+var (
+	// AppVersion is application version info
+	AppVersion = "1.0.0"
 
-func AssertStringSliceEqual(t *testing.T, expected []string, given []string) {
-	if !reflect.DeepEqual(expected, given) {
-		t.Errorf("Slice failed, excepted [%T] %v : given [%T] %v", expected, expected, given, given)
-	}
-}
+	// BuildDate is the date that executable was built
+	BuildDate = ""
 
-func AssertNil(t *testing.T, i interface{}) {
-	if !reflect.ValueOf(i).IsNil() {
-		t.Errorf("Given [%T] %v is not nil", i, i)
-	}
-}
+	// CommitHash is the hash for the commit
+	CommitHash = ""
+)
 
-func ExceptError(t *testing.T, excepted error, given error) {
-	if excepted.Error() != given.Error() {
-		t.Errorf("Excepted [%T] %v, found [%T] %v", excepted, excepted, given, given)
-	}
-}
-
-func ContainsElements(t *testing.T, expected []string, given []string) {
-	for elem := range expected {
-		found := false
-		for test := range given {
-			if elem == test {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			t.Errorf("Element %v(%T) was not found in given array %v(%T)", elem, elem, given, given)
-		}
-	}
+// VersionCmd command will display version info and exits
+var VersionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Display application version",
+	Long:  `Display application version on the screen`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("Version: %s\nBuild Date: %s\nCommit Hash: %s\n", AppVersion, BuildDate, CommitHash)
+	},
 }

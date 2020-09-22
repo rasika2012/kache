@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c)  2018 Kasun Vithanage
+ * Copyright (c) 2019 Kasun Vithanage
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,24 +20,47 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
-package protcl
+package wire
 
-type ValueType uint
+import (
+	"bufio"
+	"strings"
+	"testing"
 
-const (
-	TYP_INT ValueType = iota
-	TYP_STR
-	TYP_BLKSTR
-	TYP_ARR
+	testifyAssert "github.com/stretchr/testify/assert"
 )
 
-type Value struct {
-	Typ ValueType
-	Val interface{}
+func getParser(str string) *Parser {
+	return NewParser(bufio.NewReader(strings.NewReader(str)))
 }
 
-func NewValue(typ ValueType, i interface{}) *Value {
-	return &Value{Val: i, Typ: typ}
+func TestParser_ParseCRLF(t *testing.T) {
+	p := getParser("welcome to kache\r\n")
+	cmd, err := p.Parse()
+	testifyAssert.Nil(t, err)
+
+	testifyAssert.Equal(t, "welcome", cmd.Name)
+	testifyAssert.Equal(t, "to", cmd.Args[0])
+	testifyAssert.Equal(t, "kache", cmd.Args[1])
+}
+
+func TestParser_ParseLF(t *testing.T) {
+	p := getParser("welcome to kache\n")
+	cmd, err := p.Parse()
+	testifyAssert.Nil(t, err)
+
+	testifyAssert.Equal(t, "welcome", cmd.Name)
+	testifyAssert.Equal(t, "to", cmd.Args[0])
+	testifyAssert.Equal(t, "kache", cmd.Args[1])
+}
+
+func TestParser_ParseEmpty(t *testing.T) {
+	p := getParser("\n")
+	cmd, err := p.Parse()
+	testifyAssert.Nil(t, err)
+	testifyAssert.Equal(t, "", cmd.Name)
+	testifyAssert.Equal(t, 0, len(cmd.Args))
 }
